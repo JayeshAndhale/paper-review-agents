@@ -131,6 +131,21 @@ class ResultStore:
         with open(self.path, "a") as f:
             f.write(json.dumps(asdict(result)) + "\n")
 
+    def clear_failed(self) -> int:
+        """Drop every 'failed' record so those (topic, condition, run)
+        combinations become eligible for a fresh attempt on the next
+        run_matrix() call. Explicit and separate from run_matrix itself --
+        a failure isn't retried automatically, since re-running right after
+        a TPD wall just re-hits the same wall and burns the little quota
+        that has trickled back finding that out again."""
+        records = self.all_results()
+        kept = [r for r in records if r["status"] != "failed"]
+        dropped = len(records) - len(kept)
+        with open(self.path, "w") as f:
+            for r in kept:
+                f.write(json.dumps(r) + "\n")
+        return dropped
+
     def all_results(self) -> list[dict]:
         if not self.path.exists():
             return []

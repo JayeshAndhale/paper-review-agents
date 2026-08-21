@@ -2,6 +2,7 @@
 
     python scripts/run_evaluation.py ground_truth   # verifier precision/recall
     python scripts/run_evaluation.py matrix          # baseline vs treatment
+    python scripts/run_evaluation.py retry           # clear failed matrix runs, then rerun
     python scripts/run_evaluation.py report          # regenerate report from checkpoint
 
 Both ground_truth and matrix are resumable -- re-running either skips
@@ -74,6 +75,12 @@ def cmd_matrix():
     cmd_report()
 
 
+def cmd_retry():
+    dropped = ResultStore().clear_failed()
+    print(f"cleared {dropped} failed run(s), retrying...")
+    cmd_matrix()
+
+
 def cmd_report():
     results = ResultStore().all_results()
     report = build_report(results)
@@ -83,7 +90,12 @@ def cmd_report():
     print("\nwritten to data/evaluation/report.md")
 
 
-COMMANDS = {"ground_truth": cmd_ground_truth, "matrix": cmd_matrix, "report": cmd_report}
+COMMANDS = {
+    "ground_truth": cmd_ground_truth,
+    "matrix": cmd_matrix,
+    "retry": cmd_retry,
+    "report": cmd_report,
+}
 
 if __name__ == "__main__":
     if len(sys.argv) != 2 or sys.argv[1] not in COMMANDS:
