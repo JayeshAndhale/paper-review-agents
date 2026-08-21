@@ -12,7 +12,7 @@ import os
 from dataclasses import dataclass
 
 import arxiv
-import fitz  # PyMuPDF -- package is "pymupdf", import name is "fitz"
+import pymupdf  # PyMuPDF -- package is "pymupdf", import name is "fitz"
 import requests
 from langchain_core.messages import HumanMessage
 
@@ -51,7 +51,7 @@ def fetch_paper(arxiv_id: str, download_dir: str = "./data/papers") -> tuple[str
 
 def extract_pages(pdf_path: str) -> list[str]:
     """Return raw text for each page of the PDF."""
-    doc = fitz.open(pdf_path)
+    doc = pymupdf.open(pdf_path)
     pages = [page.get_text() for page in doc]
     doc.close()
     return pages
