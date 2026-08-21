@@ -1,0 +1,13 @@
+pyproject.toml
+src/paper_review/__init__.py
+src/paper_review/config.py
+src/paper_review/agents/__init__.py
+src/paper_review/api/__init__.py
+src/paper_review/evaluation/__init__.py
+src/paper_review/ingestion/__init__.py
+src/paper_review/retrieval/__init__.py
+src/paper_review/verification/__init__.py
+src/paper_review_agents.egg-info/PKG-INFO
+src/paper_review_agents.egg-info/SOURCES.txt
+src/paper_review_agents.egg-info/dependency_links.txt
+src/paper_review_agents.egg-info/top_level.txt

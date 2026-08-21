@@ -1,0 +1,14 @@
+langgraph>=0.2.60
+langchain-core>=0.3.28
+langchain-groq>=0.2.2
+langsmith>=0.2.0
+pydantic>=2.9.0
+pydantic-settings>=2.6.0
+python-dotenv>=1.0.1
+arxiv>=2.1.3
+pymupdf>=1.24.0
+chromadb>=0.5.20
+sentence-transformers>=3.3.0
+tiktoken>=0.8.0
+rich>=13.9.0
+pytest>=8.3.0
