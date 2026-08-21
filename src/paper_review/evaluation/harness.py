@@ -26,6 +26,7 @@ from langgraph.graph import END, StateGraph
 from paper_review.agents.graph import (
     ReviewState,
     build_graph,
+    initial_state,
     reviewer_node,
     research_node,
     route_after_review,
@@ -78,22 +79,8 @@ def score_draft(draft: str, paper_id: str) -> dict:
     }
 
 
-def _initial_state(topic: BenchmarkTopic) -> dict:
-    return {
-        "paper_id": topic.arxiv_id,
-        "topic": topic.topic_prompt,
-        "subtopics": [],
-        "research_notes": [],
-        "draft": "",
-        "review_feedback": "",
-        "review_verdict": "",
-        "revision_count": 0,
-        "max_revisions": DEFAULT_MAX_REVISIONS,
-        "verification_feedback": "",
-        "verification_passed": False,
-        "verification_revision_count": 0,
-        "max_verification_revisions": DEFAULT_MAX_REVISIONS,
-    }
+def _initial_state(topic: BenchmarkTopic) -> ReviewState:
+    return initial_state(topic.arxiv_id, topic.topic_prompt, DEFAULT_MAX_REVISIONS, DEFAULT_MAX_REVISIONS)
 
 
 @dataclass

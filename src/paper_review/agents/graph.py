@@ -31,6 +31,30 @@ class ReviewState(TypedDict):
     max_verification_revisions: int
 
 
+def initial_state(
+    paper_id: str, topic: str, max_revisions: int = 2, max_verification_revisions: int = 2
+) -> ReviewState:
+    """The single source of truth for ReviewState's starting shape -- every
+    caller (evaluation harness, API, ad-hoc scripts) needs the exact same
+    zeroed fields, and hand-rolling that dict per call site is how one of
+    them silently drifts out of sync with the TypedDict."""
+    return {
+        "paper_id": paper_id,
+        "topic": topic,
+        "subtopics": [],
+        "research_notes": [],
+        "draft": "",
+        "review_feedback": "",
+        "review_verdict": "",
+        "revision_count": 0,
+        "max_revisions": max_revisions,
+        "verification_feedback": "",
+        "verification_passed": False,
+        "verification_revision_count": 0,
+        "max_verification_revisions": max_verification_revisions,
+    }
+
+
 class Subtopics(BaseModel):
     subtopics: list[str] = Field(description="2-4 focused research angles on the topic")
 
