@@ -68,7 +68,10 @@ if "result" in st.session_state:
             f"NOT fully grounded -- hit the revision cap "
             f"({result['verification_revision_count']} verification revision(s))"
         )
-    st.caption(f"{result['reviewer_revision_count']} reviewer revision(s)")
+    st.caption(
+        f"{result['reviewer_revision_count']} reviewer revision(s) · "
+        f"{result['total_tokens']} tokens · trace {result['trace_id']}"
+    )
 
     st.markdown(result["draft"])
 

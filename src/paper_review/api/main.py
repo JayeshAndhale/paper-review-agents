@@ -11,11 +11,14 @@ background jobs and polling is real added complexity that only pays off
 once something actually needs concurrent requests.
 """
 
+import json
+
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
 from paper_review.agents.graph import build_graph, initial_state
 from paper_review.ingestion.pipeline import chunk_paper
+from paper_review.observability.tracer import TRACE_DIR, GraphTracer
 from paper_review.retrieval.pipeline import get_collection, store_chunks
 
 app = FastAPI(title="paper-review-agents")
@@ -35,6 +38,8 @@ class ReviewResponse(BaseModel):
     reviewer_revision_count: int
     verification_passed: bool
     verification_revision_count: int
+    trace_id: str
+    total_tokens: int
 
 
 def _ensure_ingested(paper_id: str) -> None:
@@ -65,14 +70,17 @@ def review(request: ReviewRequest) -> ReviewResponse:
         ) from e
 
     graph = build_graph()
+    tracer = GraphTracer()
     result = graph.invoke(
         initial_state(
             request.paper_id,
             request.topic,
             request.max_revisions,
             request.max_verification_revisions,
-        )
+        ),
+        config={"callbacks": [tracer]},
     )
+    tracer.save()
 
     return ReviewResponse(
         draft=result["draft"],
@@ -81,4 +89,15 @@ def review(request: ReviewRequest) -> ReviewResponse:
         reviewer_revision_count=result["revision_count"],
         verification_passed=result["verification_passed"],
         verification_revision_count=result["verification_revision_count"],
+        trace_id=tracer.run_id,
+        total_tokens=tracer.summary()["total_tokens"],
     )
+
+
+@app.get("/traces/{trace_id}")
+def get_trace(trace_id: str) -> dict:
+    path = TRACE_DIR / f"{trace_id}.json"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail=f"no trace recorded for {trace_id!r}")
+    with open(path) as f:
+        return json.load(f)
