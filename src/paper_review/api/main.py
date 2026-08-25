@@ -14,6 +14,7 @@ once something actually needs concurrent requests.
 import json
 
 from fastapi import FastAPI, HTTPException
+from groq import RateLimitError
 from pydantic import BaseModel, Field
 
 from paper_review.agents.graph import build_graph, initial_state
@@ -59,15 +60,29 @@ def review(request: ReviewRequest) -> ReviewResponse:
 
     graph = build_graph()
     tracer = GraphTracer()
-    result = graph.invoke(
-        initial_state(
-            request.paper_ids,
-            request.topic,
-            request.max_revisions,
-            request.max_verification_revisions,
-        ),
-        config={"callbacks": [tracer]},
-    )
+    try:
+        result = graph.invoke(
+            initial_state(
+                request.paper_ids,
+                request.topic,
+                request.max_revisions,
+                request.max_verification_revisions,
+            ),
+            config={"callbacks": [tracer]},
+        )
+    except RateLimitError as e:
+        # Groq's free tier caps tokens per *day*, not just per minute -- this
+        # isn't a transient blip, and without this handler it surfaces to the
+        # client as an opaque 500 with no indication of what actually failed
+        # or that retrying immediately won't help.
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "The LLM provider's daily quota is exhausted for now -- this "
+                "isn't a bug, it clears on its own after a wait. "
+                f"Provider message: {e}"
+            ),
+        ) from e
     tracer.save()
 
     return ReviewResponse(

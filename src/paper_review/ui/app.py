@@ -59,7 +59,14 @@ if submitted:
                 )
                 response.raise_for_status()
             except requests.RequestException as e:
-                detail = getattr(e.response, "text", str(e)) if hasattr(e, "response") and e.response else str(e)
+                # FastAPI's HTTPException body is {"detail": "..."} -- surface
+                # that readable message instead of the raw response text/JSON.
+                detail = str(e)
+                if getattr(e, "response", None) is not None:
+                    try:
+                        detail = e.response.json().get("detail", e.response.text)
+                    except ValueError:
+                        detail = e.response.text
                 st.error(f"Request to the API failed: {detail}")
             else:
                 st.session_state["result"] = response.json()
