@@ -102,7 +102,7 @@ python scripts/run_evaluation.py report          # regenerate the report from ch
 | 2. Retrieval | done |
 | 3. Agents | done |
 | 4. Verifier | done |
-| 5. Evaluation | ground-truth eval has real results -- 87.5% accuracy (14/16), 100% precision on both "supported" and "contradicted" (zero false confirmations either direction). Baseline-vs-treatment matrix is wired up and checkpointed but hasn't completed a full run yet -- blocked on a Groq quota window long enough to finish it. |
+| 5. Evaluation | done. Ground-truth eval: 93.75% accuracy (15/16) after widening verify_claim's retrieval k and filtering meta-commentary out of claim extraction (up from 87.5%). Baseline-vs-treatment: verification loop improves grounded rate from 57.1% (baseline, no verifier) to 85.2% (treatment) on the transformer_attention topic -- proves the loop is actually earning its keep, not just adding latency. A second topic (ResNet) is checkpointed as failed pending Groq quota; retryable anytime with `run_evaluation.py retry`, not blocking. |
 | 6. Ship | API, UI, and tracing done and smoke-tested. Docker written but not build-tested. Provider failover ("cost routing") deferred pending a second LLM provider key. README, this file. |
 
 ## Project structure
