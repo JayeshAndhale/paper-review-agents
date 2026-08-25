@@ -27,22 +27,40 @@ def extract_claims(draft: str) -> list[str]:
     """One LLM call to pull out discrete factual claims from the draft,
     including citations. A fabricated reference is exactly as checkable --
     and exactly as important to catch -- as a fabricated fact in prose, so
-    it must not be filtered out as 'structural commentary.'"""
+    it must not be filtered out as 'structural commentary.'
+
+    Explicitly skips the review's own scope statements ("this review does
+    not cover X", "Y falls outside this analysis") -- those describe the
+    review's structure, not a fact about the source paper, so they can
+    never be supported or contradicted by retrieved evidence and would
+    only ever land as a false 'unsupported' against a verifier that's
+    actually working correctly."""
     llm = get_llm("cheap", schema=ExtractedClaims, max_tokens=2048)
     result = llm.invoke(
         f"List the discrete factual claims made in this text -- each one a single "
         f"assertion that could be checked against a source. Skip opinions and "
         f"transitions. Do NOT skip citations or references: for each one listed, "
         f"extract a claim of the form 'a source titled X exists and discusses Y', "
-        f"so fabricated citations get checked exactly like any other factual claim.\n\n{draft}"
+        f"so fabricated citations get checked exactly like any other factual claim. "
+        f"Also skip statements about the review's own scope or structure (e.g. "
+        f"'this review does not cover X', 'Y is outside the scope of this analysis') "
+        f"-- those describe the write-up itself, not the source paper, and can never "
+        f"be checked against it.\n\n{draft}"
     )
     return result.claims
 
 
-def verify_claim(claim: str, paper_id: str) -> ClaimVerdict:
+def verify_claim(claim: str, paper_id: str, k: int = 5) -> ClaimVerdict:
     """Independently re-retrieve evidence for one claim and judge it against
-    that evidence -- not against whatever the writer says it used."""
-    chunks = retrieve(claim, k=3, paper_id=paper_id)
+    that evidence -- not against whatever the writer says it used.
+
+    k=5, not the original 3: a ground-truth eval run (see evaluation/) found
+    genuinely true claims coming back "unsupported" because the one chunk
+    that actually covered them didn't make the top 3 -- a retrieval-recall
+    gap, not the judge being wrong. Widening k costs a bigger prompt per
+    verify_claim call (~5 chunks x ~300 tokens), comfortably inside Groq's
+    per-request cap even added to the strong tier's default max_tokens."""
+    chunks = retrieve(claim, k=k, paper_id=paper_id)
     evidence = "\n\n".join(c["text"] for c in chunks)
 
     llm = get_llm("strong", schema=ClaimVerdict)
