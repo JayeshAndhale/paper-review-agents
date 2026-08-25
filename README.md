@@ -1,12 +1,14 @@
 # paper-review-agents
 
-Multi-agent scientific review generation with grounding verification.
+Multi-paper research synthesis with grounding verification.
 
-Given an arXiv paper and a topic, this system runs a small team of LLM
-agents to produce a literature-review-style write-up, revises it for
-coherence, and then independently re-verifies every factual claim against
-the source paper before calling it done -- the verifier never trusts the
-writer's self-reported citations, it re-retrieves evidence per claim itself.
+Given a research topic and a set of arXiv papers, this system runs a small
+team of LLM agents to write a manuscript synthesizing what those papers say
+about the topic -- drawing connections and contrasts across sources, citing
+which paper backs each claim -- then independently re-verifies every factual
+claim against the source papers before calling it done. The verifier never
+trusts the writer's self-reported citations; it re-retrieves evidence per
+claim itself, pooled across every source paper.
 
 ## Architecture
 
@@ -14,20 +16,31 @@ writer's self-reported citations, it re-retrieves evidence per claim itself.
    section-classify each page with a cheap-tier LLM call, chunk with
    deterministic hash-based IDs.
 2. **Retrieval** (`retrieval/`) -- embed chunks into ChromaDB
-   (sentence-transformers), retrieve top-k scoped to a paper_id.
+   (sentence-transformers), retrieve top-k scoped to a *set* of paper_ids
+   (Chroma's `$in` filter), ranked by relevance across all of them rather
+   than split evenly per paper. `ensure_ingested()` ingests whichever of a
+   requested set isn't in the store yet.
 3. **Agents** (`agents/graph.py`, LangGraph) --
    `scheduler -> research -> writer -> reviewer -> verifier`, with two
    independent revision loops: writer<->reviewer for coherence,
    writer<->verifier for grounding. Separate because passing one says
-   nothing about the other.
+   nothing about the other. `research_node` tags each note with which
+   papers its evidence actually came from; `writer_node` is prompted to
+   cite that paper's arXiv ID inline per claim -- that citation trail is
+   what makes a multi-source synthesis attributable, not just grounded
+   somewhere unspecified.
 4. **Verification** (`verification/`) -- extracts discrete factual claims
    from a draft (including citations), independently re-retrieves evidence
-   per claim, and judges supported / contradicted / unsupported.
+   for each one pooled across every source paper, and judges supported /
+   contradicted / unsupported. (Checking a claim against the specific paper
+   it was cited to, rather than the pooled set, is a real possible
+   extension -- not built, since it needs parsing citations back out of
+   prose.)
 5. **Evaluation** (`evaluation/`) -- two pieces: hand-labeled ground truth
    to score the verifier's own precision/recall, and a baseline-vs-treatment
    harness comparing the pipeline with the verification loop on vs off.
-6. **Serving** (`api/`, `ui/`) -- FastAPI `/review` endpoint, Streamlit
-   front-end as a thin HTTP client over it.
+6. **Serving** (`api/`, `ui/`) -- FastAPI `/review` endpoint (topic + list of
+   arXiv IDs), Streamlit front-end as a thin HTTP client over it.
 7. **Observability** (`observability/tracer.py`) -- per-run node timing and
    token usage, attached as a LangChain callback and saved to
    `data/traces/`.

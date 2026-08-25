@@ -18,36 +18,44 @@ API_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:8000")
 
 st.set_page_config(page_title="Paper Review Agents", layout="wide")
 st.title("Paper Review Agents")
-st.caption("Multi-agent scientific review generation with grounding verification")
+st.caption("Multi-paper research synthesis with grounding verification")
 
 with st.form("review_form"):
-    paper_id = st.text_input("arXiv ID", placeholder="1706.03762")
     topic = st.text_area(
-        "Review topic",
-        placeholder="How does the attention mechanism work in the Transformer?",
+        "Research topic",
+        placeholder="How does retrieval-augmented generation reduce hallucination in LLMs?",
+    )
+    paper_ids_raw = st.text_area(
+        "Source papers -- one arXiv ID per line",
+        placeholder="1706.03762\n1512.03385",
+        height=100,
     )
     col1, col2 = st.columns(2)
     max_revisions = col1.number_input("Max reviewer revisions", min_value=0, max_value=5, value=2)
     max_verification_revisions = col2.number_input(
         "Max verification revisions", min_value=0, max_value=5, value=2
     )
-    submitted = st.form_submit_button("Generate review")
+    submitted = st.form_submit_button("Generate manuscript")
 
 if submitted:
-    if not paper_id.strip() or not topic.strip():
-        st.error("Both arXiv ID and topic are required.")
+    paper_ids = [line.strip() for line in paper_ids_raw.splitlines() if line.strip()]
+    if not paper_ids or not topic.strip():
+        st.error("A topic and at least one source paper's arXiv ID are required.")
     else:
-        with st.spinner("Running ingestion + multi-agent review (can take a few minutes)..."):
+        with st.spinner(
+            f"Researching {len(paper_ids)} paper(s) and writing the manuscript "
+            f"(can take several minutes for multiple papers)..."
+        ):
             try:
                 response = requests.post(
                     f"{API_BASE_URL}/review",
                     json={
-                        "paper_id": paper_id.strip(),
+                        "paper_ids": paper_ids,
                         "topic": topic.strip(),
                         "max_revisions": max_revisions,
                         "max_verification_revisions": max_verification_revisions,
                     },
-                    timeout=900,
+                    timeout=1800,
                 )
                 response.raise_for_status()
             except requests.RequestException as e:
@@ -75,7 +83,7 @@ if "result" in st.session_state:
 
     st.markdown(result["draft"])
 
-    with st.expander("Subtopics + research notes"):
+    with st.expander("Subtopics + research notes (source attribution per note)"):
         st.write(result["subtopics"])
         for note in result["research_notes"]:
             st.write(note)

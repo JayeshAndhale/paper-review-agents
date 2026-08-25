@@ -36,18 +36,18 @@ def cmd_ground_truth():
         if item.claim in done_claims:
             continue
         print(f"verifying: {item.claim[:70]}...")
-        verdict = verify_claim(item.claim, item.paper_id)
+        verified = verify_claim(item.claim, [item.paper_id])
         row = {
             "claim": item.claim,
             "expected": item.expected,
-            "predicted": verdict.verdict,
-            "correct": item.expected == verdict.verdict,
-            "reasoning": verdict.reasoning,
+            "predicted": verified.verdict.verdict,
+            "correct": item.expected == verified.verdict.verdict,
+            "reasoning": verified.verdict.reasoning,
             "note": item.note,
         }
         with open(GROUND_TRUTH_CHECKPOINT, "a") as f:
             f.write(json.dumps(row) + "\n")
-        print(f"  expected={item.expected} got={verdict.verdict} {'OK' if row['correct'] else 'MISS'}")
+        print(f"  expected={item.expected} got={verified.verdict.verdict} {'OK' if row['correct'] else 'MISS'}")
 
     with open(GROUND_TRUTH_CHECKPOINT) as f:
         rows = [json.loads(line) for line in f]

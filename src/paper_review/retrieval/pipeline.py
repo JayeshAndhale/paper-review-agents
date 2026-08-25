@@ -8,7 +8,7 @@ import chromadb
 from chromadb.utils import embedding_functions
 
 from paper_review.config import settings
-from paper_review.ingestion.pipeline import Chunk
+from paper_review.ingestion.pipeline import Chunk, chunk_paper
 
 _embedding_fn = embedding_functions.SentenceTransformerEmbeddingFunction(
     model_name=settings.embedding_model
@@ -32,10 +32,13 @@ def store_chunks(chunks: list[Chunk]) -> None:
     )
 
 
-def retrieve(query: str, k: int = 5, paper_id: str | None = None) -> list[dict]:
-    """Return the k most relevant chunks for a query, optionally scoped to one paper."""
+def retrieve(query: str, k: int = 5, paper_ids: list[str] | None = None) -> list[dict]:
+    """Return the k most relevant chunks for a query, optionally scoped to a
+    set of papers. Chroma's $in operator handles one paper or many
+    identically, so callers never need a separate single-paper code path --
+    a single-paper caller just passes a one-element list."""
     collection = get_collection()
-    where = {"paper_id": paper_id} if paper_id else None
+    where = {"paper_id": {"$in": paper_ids}} if paper_ids else None
     results = collection.query(query_texts=[query], n_results=k, where=where)
 
     return [
@@ -44,3 +47,19 @@ def retrieve(query: str, k: int = 5, paper_id: str | None = None) -> list[dict]:
             results["ids"][0], results["documents"][0], results["metadatas"][0]
         )
     ]
+
+
+def ensure_ingested(paper_ids: list[str]) -> None:
+    """Ingest any paper_id not already present in the collection, skipping
+    ones that already have chunks stored. Shared by the API and the
+    evaluation harness so "has this paper actually been chunked and
+    embedded yet" has exactly one implementation -- a paper silently
+    missing from retrieval produces no error, just an ungrounded review
+    with no obvious cause, which is a much worse failure mode than a
+    slightly slower first request."""
+    collection = get_collection()
+    for paper_id in paper_ids:
+        existing = collection.get(where={"paper_id": paper_id}, limit=1)
+        if existing["ids"]:
+            continue
+        store_chunks(chunk_paper(paper_id))

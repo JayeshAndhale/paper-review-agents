@@ -34,6 +34,7 @@ from paper_review.agents.graph import (
     writer_node,
 )
 from paper_review.evaluation.benchmark import BENCHMARK_TOPICS, BenchmarkTopic
+from paper_review.retrieval.pipeline import ensure_ingested
 from paper_review.verification.pipeline import all_claims_supported, verify_draft
 
 Condition = Literal["baseline", "treatment"]
@@ -65,12 +66,12 @@ def build_baseline_graph():
     return graph.compile()
 
 
-def score_draft(draft: str, paper_id: str) -> dict:
-    results = verify_draft(draft, paper_id)
+def score_draft(draft: str, paper_ids: list[str]) -> dict:
+    results = verify_draft(draft, paper_ids)
     total = len(results)
     counts = {"supported": 0, "contradicted": 0, "unsupported": 0}
-    for _, verdict in results:
-        counts[verdict.verdict] += 1
+    for r in results:
+        counts[r.verdict.verdict] += 1
     return {
         "total_claims": total,
         **counts,
@@ -80,7 +81,7 @@ def score_draft(draft: str, paper_id: str) -> dict:
 
 
 def _initial_state(topic: BenchmarkTopic) -> ReviewState:
-    return initial_state(topic.arxiv_id, topic.topic_prompt, DEFAULT_MAX_REVISIONS, DEFAULT_MAX_REVISIONS)
+    return initial_state(topic.arxiv_ids, topic.topic_prompt, DEFAULT_MAX_REVISIONS, DEFAULT_MAX_REVISIONS)
 
 
 @dataclass
@@ -144,8 +145,9 @@ def run_one(topic: BenchmarkTopic, condition: Condition, run_number: int) -> Run
     graph = build_baseline_graph() if condition == "baseline" else build_graph()
     start = time.monotonic()
     try:
+        ensure_ingested(topic.arxiv_ids)
         result = graph.invoke(_initial_state(topic))
-        scoring = score_draft(result["draft"], topic.arxiv_id)
+        scoring = score_draft(result["draft"], topic.arxiv_ids)
     except Exception as e:
         return RunResult(topic.name, condition, run_number, status="failed", error=repr(e))
 
