@@ -104,8 +104,17 @@ def writer_node(state: ReviewState) -> dict:
     This doesn't make citations verifier-checked against the *specific*
     cited paper (verify_claim checks against the pooled evidence, not a
     single source -- see its docstring); it's what makes the manuscript
-    read as attributable at all, prerequisite to that being checkable."""
-    llm = get_llm("strong", max_tokens=2048)
+    read as attributable at all, prerequisite to that being checkable.
+
+    max_tokens=3072, not 4096: a real multi-paper run needed more than the
+    old 2048 (a two-paper comparative synthesis got cut off mid-section),
+    but a revision call's prompt already includes the full prior draft --
+    pushing the completion budget too high risks the same "request too
+    large" 413 this project hit once before (see config.get_llm), since
+    prompt + max_tokens share one cap. 3072 clears the truncation seen in
+    practice while leaving headroom for a revision prompt that's already
+    carrying a few thousand tokens of prior draft."""
+    llm = get_llm("strong", max_tokens=3072)
     notes = "\n".join(state["research_notes"])
 
     feedback = state.get("review_feedback") or state.get("verification_feedback")
